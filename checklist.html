@@ -1,0 +1,352 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daily Checklist</title>
+
+  <script>
+    // PASTE THE SAME GOOGLE APPS SCRIPT WEB APP URL HERE
+    const API_URL = "https://script.google.com/macros/s/AKfycbxHJFM49Fgvj_-V_wOPxV_yJPmZT6Wg-t_TjCjPRGb-MVp76ZQiuLzk1PUexz9fCIlCbA/exec";
+  </script>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #f4f6fb;
+      color: #202432;
+      font-family: Arial, sans-serif;
+    }
+
+    .container {
+      max-width: 750px;
+      margin: 25px auto;
+      padding: 25px;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 5px 25px rgba(0,0,0,.07);
+    }
+
+    h1 { margin-bottom: 8px; }
+
+    .top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    a {
+      color: #4361ee;
+      text-decoration: none;
+    }
+
+    .progress-area {
+      margin: 22px 0;
+    }
+
+    .progress-info {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+
+    .progress-track {
+      height: 12px;
+      background: #e8eaf0;
+      border-radius: 20px;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      width: 0%;
+      height: 100%;
+      background: #4361ee;
+      transition: width .2s;
+    }
+
+    .task {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      padding: 14px 10px;
+      border-bottom: 1px solid #edf0f4;
+    }
+
+    .task input {
+      width: 19px;
+      height: 19px;
+      cursor: pointer;
+      accent-color: #4361ee;
+      flex-shrink: 0;
+    }
+
+    .task-content {
+      flex: 1;
+    }
+
+    .task-name {
+      font-weight: 600;
+      display: block;
+    }
+
+    .task-time {
+      color: #858b99;
+      font-size: 12px;
+      margin-top: 4px;
+      display: block;
+    }
+
+    .task.completed .task-name {
+      text-decoration: line-through;
+      color: #9298a5;
+    }
+
+    .status {
+      min-height: 22px;
+      margin: 15px 0;
+      color: #667085;
+      font-size: 13px;
+    }
+
+    .back-button {
+      display: inline-block;
+      margin-top: 18px;
+      padding: 10px 16px;
+      background: #4361ee;
+      color: white;
+      border-radius: 8px;
+    }
+
+    .back-button:hover { background: #304bd0; }
+
+    @media (max-width: 550px) {
+      body { padding: 10px; }
+      .container { padding: 16px; }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="container">
+    <div class="top">
+      <div>
+        <h1>Daily Checklist</h1>
+        <div id="selectedDate"></div>
+      </div>
+      <a href="calender.html">← Calendar</a>
+    </div>
+
+    <section class="progress-area">
+      <div class="progress-info">
+        <span>Daily Progress</span>
+        <strong id="progressText">0 / 20</strong>
+      </div>
+      <div class="progress-track">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+    </section>
+
+    <div id="taskList">Loading tasks...</div>
+    <div class="status" id="status"></div>
+
+    <a class="back-button" href="calender.html">Back to Calendar</a>
+  </main>
+
+  <script>
+    const tasksWithTimes = {
+      1: "5:00 AM",
+      2: "Morning",
+      3: "Morning",
+      4: "Morning",
+      5: "Morning",
+      6: "Morning",
+      7: "Morning",
+      8: "Morning",
+      9: "Morning",
+      10: "Daily",
+      11: "7:15 AM",
+      12: "After Breakfast",
+      13: "1:15 PM",
+      14: "After Lunch",
+      15: "Evening",
+      16: "7:00 - 7:30 PM",
+      17: "After Dinner",
+      18: "Night",
+      19: "9:00 PM",
+      20: "9:00 PM"
+    };
+
+    const taskList = document.getElementById("taskList");
+    const statusElement = document.getElementById("status");
+
+    function getLocalDate() {
+      const now = new Date();
+      return [
+        now.getFullYear(),
+        String(now.getMonth() + 1).padStart(2, "0"),
+        String(now.getDate()).padStart(2, "0")
+      ].join("-");
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const selectedDate = params.get("date") || getLocalDate();
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(selectedDate)) {
+      taskList.textContent = "Invalid date.";
+      throw new Error("Invalid date in URL");
+    }
+
+    document.getElementById("selectedDate").textContent = selectedDate;
+
+    // JSONP lets a standalone HTML file communicate with Apps Script.
+    function callAPI(parameters) {
+      return new Promise((resolve, reject) => {
+        if (!API_URL || API_URL.includes("PASTE_YOUR")) {
+          reject(new Error("Paste your Apps Script Web App URL at the top of this file."));
+          return;
+        }
+
+        const callbackName =
+          "habitCallback_" + Date.now() + "_" +
+          Math.random().toString(36).slice(2);
+
+        const query = new URLSearchParams({
+          ...parameters,
+          callback: callbackName
+        });
+
+        const script = document.createElement("script");
+        let finished = false;
+
+        const timeout = setTimeout(() => {
+          finish(new Error("Connection timed out. Check your Apps Script deployment and URL."));
+        }, 15000);
+
+        function finish(error, result) {
+          if (finished) return;
+          finished = true;
+          clearTimeout(timeout);
+          script.remove();
+          delete window[callbackName];
+
+          if (error) reject(error);
+          else resolve(result);
+        }
+
+        window[callbackName] = result => finish(null, result);
+
+        script.onerror = () => {
+          finish(new Error("Unable to connect to Apps Script. Check the Web App URL and access permissions."));
+        };
+
+        script.src = API_URL + "?" + query.toString();
+        document.body.appendChild(script);
+      });
+    }
+
+    function updateProgress() {
+      const checkboxes = [...document.querySelectorAll(".task-checkbox")];
+      const completed = checkboxes.filter(box => box.checked).length;
+      const total = checkboxes.length;
+      const percentage = total ? (completed / total) * 100 : 0;
+
+      document.getElementById("progressText").textContent =
+        `${completed} / ${total}`;
+
+      document.getElementById("progressBar").style.width =
+        percentage + "%";
+    }
+
+    function renderTasks(tasks) {
+      taskList.innerHTML = "";
+
+      tasks.forEach(task => {
+        const row = document.createElement("div");
+        row.className = "task" + (task.completed ? " completed" : "");
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.className = "task-checkbox";
+        checkbox.checked = task.completed;
+        checkbox.dataset.taskId = task.id;
+
+        const content = document.createElement("div");
+        content.className = "task-content";
+
+        const name = document.createElement("span");
+        name.className = "task-name";
+        name.textContent = task.name;
+
+        const time = document.createElement("span");
+        time.className = "task-time";
+        time.textContent = tasksWithTimes[task.id] || "Daily";
+
+        content.append(name, time);
+        row.append(checkbox, content);
+        taskList.appendChild(row);
+
+        checkbox.addEventListener("change", async () => {
+          checkbox.disabled = true;
+          row.classList.toggle("completed", checkbox.checked);
+          updateProgress();
+          statusElement.textContent = "Saving...";
+
+          try {
+            const result = await callAPI({
+              action: "saveTaskStatus",
+              date: selectedDate,
+              taskId: task.id,
+              completed: String(checkbox.checked)
+            });
+
+            if (result.error) throw new Error(result.error);
+
+            statusElement.textContent = "Saved successfully.";
+          } catch (error) {
+            checkbox.checked = !checkbox.checked;
+            row.classList.toggle("completed", checkbox.checked);
+            updateProgress();
+            statusElement.textContent = "Save failed: " + error.message;
+          } finally {
+            checkbox.disabled = false;
+          }
+        });
+      });
+
+      updateProgress();
+    }
+
+    async function loadChecklist() {
+      try {
+        statusElement.textContent = "Connecting to Google Sheets...";
+
+        const result = await callAPI({
+          action: "getDailyChecklist",
+          date: selectedDate
+        });
+
+        if (result.error) throw new Error(result.error);
+
+        if (!Array.isArray(result)) {
+          throw new Error("Unexpected response from Apps Script.");
+        }
+
+        renderTasks(result);
+        statusElement.textContent = "Checklist loaded.";
+      } catch (error) {
+        taskList.textContent = "Could not load your checklist.";
+        statusElement.textContent = error.message;
+      }
+    }
+
+    loadChecklist();
+  </script>
+</body>
+</html>

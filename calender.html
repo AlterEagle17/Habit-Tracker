@@ -1,0 +1,254 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daily Habit Tracker - Calendar</title>
+
+  <script>
+    // PASTE YOUR GOOGLE APPS SCRIPT WEB APP URL HERE
+    const API_URL = "https://script.google.com/macros/s/AKfycbxHJFM49Fgvj_-V_wOPxV_yJPmZT6Wg-t_TjCjPRGb-MVp76ZQiuLzk1PUexz9fCIlCbA/exec";
+  </script>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      font-family: Arial, sans-serif;
+      background: #f4f6fb;
+      color: #202432;
+    }
+
+    .container {
+      max-width: 850px;
+      margin: 30px auto;
+      padding: 25px;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 5px 25px rgba(0,0,0,.07);
+    }
+
+    h1 { text-align: center; }
+
+    .controls {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 24px 0;
+    }
+
+    button, select, input {
+      padding: 10px 14px;
+      border: 1px solid #d7dbe5;
+      border-radius: 8px;
+      background: white;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    button:hover { background: #edf1ff; }
+
+    .month-year {
+      font-weight: bold;
+      min-width: 150px;
+      text-align: center;
+    }
+
+    .calendar {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 8px;
+    }
+
+    .day-name {
+      text-align: center;
+      font-weight: bold;
+      padding: 12px 0;
+      color: #667085;
+    }
+
+    .date {
+      min-height: 75px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border: 1px solid #e3e6ed;
+      border-radius: 10px;
+      text-decoration: none;
+      color: #202432;
+      font-weight: bold;
+      background: #fff;
+    }
+
+    .date:hover {
+      background: #eaf0ff;
+      border-color: #6688ff;
+    }
+
+    .today {
+      border: 2px solid #4361ee;
+      color: #4361ee;
+    }
+
+    .empty { border: none; }
+
+    .hint {
+      text-align: center;
+      color: #777;
+      margin-top: 22px;
+      font-size: 14px;
+    }
+
+    @media (max-width: 550px) {
+      body { padding: 10px; }
+      .container { padding: 14px; }
+      .date { min-height: 52px; }
+      .calendar { gap: 4px; }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="container">
+    <h1>Daily Habit Tracker</h1>
+
+    <div class="controls">
+      <button id="previous">← Previous</button>
+      <div class="month-year" id="monthYear"></div>
+      <button id="next">Next →</button>
+    </div>
+
+    <div class="controls">
+      <select id="monthSelect"></select>
+      <input type="number" id="yearInput" min="2000" max="2100">
+      <button id="goButton">Go</button>
+      <button id="todayButton">Today</button>
+    </div>
+
+    <div class="calendar" id="calendar"></div>
+
+    <p class="hint">Select a date to open its daily checklist.</p>
+  </main>
+
+  <script>
+    const calendar = document.getElementById("calendar");
+    const monthYear = document.getElementById("monthYear");
+    const monthSelect = document.getElementById("monthSelect");
+    const yearInput = document.getElementById("yearInput");
+
+    const monthNames = [
+      "January", "February", "March", "April",
+      "May", "June", "July", "August",
+      "September", "October", "November", "December"
+    ];
+
+    let currentDate = new Date();
+    currentDate = new Date(
+      currentDate.getFullYear(),
+      currentDate.getMonth(),
+      1
+    );
+
+    monthNames.forEach((name, index) => {
+      const option = document.createElement("option");
+      option.value = index;
+      option.textContent = name;
+      monthSelect.appendChild(option);
+    });
+
+    function localDateString(year, month, day) {
+      return [
+        year,
+        String(month + 1).padStart(2, "0"),
+        String(day).padStart(2, "0")
+      ].join("-");
+    }
+
+    function renderCalendar() {
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+
+      monthYear.textContent = `${monthNames[month]} ${year}`;
+      monthSelect.value = month;
+      yearInput.value = year;
+
+      calendar.innerHTML = "";
+
+      ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+        .forEach(day => {
+          const element = document.createElement("div");
+          element.className = "day-name";
+          element.textContent = day;
+          calendar.appendChild(element);
+        });
+
+      const firstDay = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+      for (let i = 0; i < firstDay; i++) {
+        const empty = document.createElement("div");
+        empty.className = "date empty";
+        calendar.appendChild(empty);
+      }
+
+      const today = new Date();
+      const todayString = localDateString(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate()
+      );
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateString = localDateString(year, month, day);
+        const link = document.createElement("a");
+
+        link.className = "date";
+        link.textContent = day;
+        link.href = `checklist.html?date=${dateString}`;
+
+        if (dateString === todayString) {
+          link.classList.add("today");
+        }
+
+        calendar.appendChild(link);
+      }
+    }
+
+    document.getElementById("previous").addEventListener("click", () => {
+      currentDate.setMonth(currentDate.getMonth() - 1);
+      renderCalendar();
+    });
+
+    document.getElementById("next").addEventListener("click", () => {
+      currentDate.setMonth(currentDate.getMonth() + 1);
+      renderCalendar();
+    });
+
+    document.getElementById("goButton").addEventListener("click", () => {
+      const year = Number(yearInput.value);
+      const month = Number(monthSelect.value);
+
+      if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+        alert("Enter a valid year between 2000 and 2100.");
+        return;
+      }
+
+      currentDate = new Date(year, month, 1);
+      renderCalendar();
+    });
+
+    document.getElementById("todayButton").addEventListener("click", () => {
+      const today = new Date();
+      currentDate = new Date(today.getFullYear(), today.getMonth(), 1);
+      renderCalendar();
+    });
+
+    renderCalendar();
+  </script>
+</body>
+</html>
